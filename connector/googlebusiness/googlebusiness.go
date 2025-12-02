@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/dexidp/dex/connector"
 )
@@ -16,7 +17,7 @@ type googleBusinessConnector struct {
 }
 
 type businessAPIResponse struct {
-	Groups []string `json:"groups"`
+	Groups interface{} `json:"groups"` // Can be []string or string
 }
 
 func (c *googleBusinessConnector) LoginURL(s connector.Scopes, callbackURL, state string) (string, error) {
@@ -73,5 +74,29 @@ func (c *googleBusinessConnector) callBusinessAPI(email string) ([]string, error
 		return nil, fmt.Errorf("failed to decode API response: %w", err)
 	}
 
-	return apiResp.Groups, nil
+	// Handle both array and string formats
+	switch groups := apiResp.Groups.(type) {
+	case []interface{}:
+		// Convert []interface{} to []string
+		result := make([]string, len(groups))
+		for i, v := range groups {
+			if s, ok := v.(string); ok {
+				result[i] = s
+			}
+		}
+		return result, nil
+	case string:
+		// Split comma-separated string
+		if groups == "" {
+			return []string{}, nil
+		}
+		// Split by comma and trim spaces
+		parts := strings.Split(groups, ",")
+		for i, part := range parts {
+			parts[i] = strings.TrimSpace(part)
+		}
+		return parts, nil
+	default:
+		return nil, fmt.Errorf("unexpected groups type: %T", groups)
+	}
 }
