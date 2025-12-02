@@ -1,4 +1,5 @@
 ARG BASE_IMAGE=alpine
+ARG BUILDPLATFORM=linux/amd64
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.8.0@sha256:add602d55daca18914838a78221f6bbe4284114b452c86a48f96d59aeb00f5c6 AS xx
 
