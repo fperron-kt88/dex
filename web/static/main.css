@@ -53,6 +53,11 @@ body {
   background-image: url(../static/img/google-icon.svg);;
 }
 
+.dex-btn-icon--googlebusiness {
+  background-color: #FFFFFF;
+  background-image: url(../static/img/google-icon.svg);;
+}
+
 .dex-btn-icon--local {
   background-color: #84B6EF;
   background-image: url(../static/img/email-icon.svg);
