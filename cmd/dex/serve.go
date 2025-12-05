@@ -116,6 +116,7 @@ func runServe(options serveOptions) error {
 			"arch", runtime.GOARCH,
 		),
 	)
+    logger.Info("config theme", "theme", c.Web.Theme)
 
 	if c.Logger.Level != slog.LevelInfo {
 		logger.Info("config using log level", "level", c.Logger.Level)

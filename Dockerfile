@@ -86,9 +86,7 @@ COPY --from=gomplate /usr/local/bin/gomplate /usr/local/bin/gomplate
 
 LABEL dex.custom=true \
       dex.version="${VERSION}" \
-      dex.build_time="${BUILD_TIME}" \
-      dex.version="${VERSION}" \
-      dex.build_time="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      dex.build_time="${BUILD_TIME}"
 
 USER 1001:1001
 

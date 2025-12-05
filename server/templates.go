@@ -94,7 +94,7 @@ func loadWebConfig(c webConfig) (http.Handler, http.Handler, http.HandlerFunc, *
 		c.theme = ""
 	}
 	if c.theme == "" {
-		c.theme = "light"
+		c.theme = "dark"
 	}
 	if c.issuer == "" {
 		c.issuer = "dex"
