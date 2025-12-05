@@ -3,16 +3,21 @@ package googlebusiness
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/dexidp/dex/connector"
+	"golang.org/x/oauth2"
 )
 
 type googleBusinessConnector struct {
 	googleConn     connector.CallbackConnector
 	businessAPIURL string
+	oauth2Config   *oauth2.Config
+	verifier       *oidc.IDTokenVerifier
 	httpClient     *http.Client
 }
 
@@ -20,35 +25,75 @@ type businessAPIResponse struct {
 	Groups interface{} `json:"groups"` // Can be []string or string
 }
 
+type oauth2Error struct {
+	errorType string
+	desc      string
+}
+
+func (e *oauth2Error) Error() string {
+	return fmt.Sprintf("oauth2: %s: %s", e.errorType, e.desc)
+}
+
 func (c *googleBusinessConnector) LoginURL(s connector.Scopes, callbackURL, state string) (string, error) {
 	return c.googleConn.LoginURL(s, callbackURL, state)
 }
 
 func (c *googleBusinessConnector) HandleCallback(s connector.Scopes, r *http.Request) (connector.Identity, error) {
-	// First, get the identity from the Google connector
-	identity, err := c.googleConn.HandleCallback(s, r)
-	if err != nil {
-		return identity, err
+	// Extract authorization code from request
+	q := r.URL.Query()
+	if errType := q.Get("error"); errType != "" {
+		return connector.Identity{}, &oauth2Error{errType, q.Get("error_description")}
 	}
 
-	// Call business logic API to get additional groups
-	groups, err := c.callBusinessAPI(identity.Email)
+	// Perform OAuth token exchange to get ID token
+	token, err := c.oauth2Config.Exchange(r.Context(), q.Get("code"))
 	if err != nil {
-		// Log the error but don't fail the login
-		// You could return default groups or empty slice
-		fmt.Printf("Failed to get business groups for %s: %v\n", identity.Email, err)
-		groups = []string{}
+		return connector.Identity{}, fmt.Errorf("google-business: failed to get token: %v", err)
 	}
 
-	// Append the business groups to the existing groups
-	identity.Groups = append(identity.Groups, groups...)
+	// Extract ID token
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		return connector.Identity{}, errors.New("google-business: no id_token in token response")
+	}
+
+	// Validate ID token
+	idToken, err := c.verifier.Verify(r.Context(), rawIDToken)
+	if err != nil {
+		return connector.Identity{}, fmt.Errorf("google-business: failed to verify ID Token: %v", err)
+	}
+
+	// Extract email from validated token
+	var claims struct {
+		Email    string `json:"email"`
+		Verified bool   `json:"email_verified"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		return connector.Identity{}, fmt.Errorf("google-business: failed to parse claims: %v", err)
+	}
+
+	// Call business API with validated email and token
+	groups, err := c.callBusinessAPI(claims.Email, rawIDToken)
+	if err != nil {
+		// Return error to fail the login (403 to user)
+		return connector.Identity{}, fmt.Errorf("business API rejected request: %v", err)
+	}
+
+	// Create identity with validated data
+	identity := connector.Identity{
+		UserID:        idToken.Subject,
+		Username:      claims.Email,
+		Email:         claims.Email,
+		EmailVerified: claims.Verified,
+		Groups:        groups,
+	}
 
 	return identity, nil
 }
 
-func (c *googleBusinessConnector) callBusinessAPI(email string) ([]string, error) {
-	// Construct the API URL with email as query parameter
-	url := fmt.Sprintf("%s?email=%s", c.businessAPIURL, email)
+func (c *googleBusinessConnector) callBusinessAPI(email, idToken string) ([]string, error) {
+	// Construct the API URL with email and ID token as query parameters
+	url := fmt.Sprintf("%s?email=%s&id_token=%s", c.businessAPIURL, email, idToken)
 
 	// Create the request
 	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
