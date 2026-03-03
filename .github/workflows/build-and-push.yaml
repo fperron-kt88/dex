@@ -16,8 +16,13 @@ jobs:
       - name: Get version info
         id: version
         run: |
-          # Try to get semantic version from git describe, fallback to short SHA
-          GIT_VERSION=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)
+          # Fetch upstream tags to ensure we have proper semantic versions
+          # (Tags should already be in fork from manual push, but this ensures freshness)
+          git remote add upstream https://github.com/dexidp/dex.git 2>/dev/null || true
+          git fetch upstream --tags 2>/dev/null || true
+          
+          # Get semantic version (only match v* release tags, not api/* tags)
+          GIT_VERSION=$(git describe --tags --always --match 'v[0-9]*' 2>/dev/null || git rev-parse --short HEAD)
           FULL_SHA=$(git rev-parse HEAD)
           # Tag format: v2.38.0-googlebusiness or SHA-googlebusiness
           IMAGE_TAG="${GIT_VERSION}-googlebusiness"
