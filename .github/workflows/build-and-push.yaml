@@ -2,7 +2,7 @@ name: Build and Push to GitHub Container Registry
 
 on:
   push:
-    branches: [main, custom-fx]
+    branches: [main]
 
 jobs:
   build-and-push:
