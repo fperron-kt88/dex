@@ -163,6 +163,7 @@ type Web struct {
 	AllowedOrigins []string       `json:"allowedOrigins"`
 	AllowedHeaders []string       `json:"allowedHeaders"`
 	ClientRemoteIP ClientRemoteIP `json:"clientRemoteIP"`
+	Theme          string         `json:"theme"`
 }
 
 type ClientRemoteIP struct {

@@ -1,4 +1,7 @@
 ARG BASE_IMAGE=alpine
+ARG BUILDPLATFORM=linux/amd64
+ARG VERSION
+ARG BUILD_TIME
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.8.0@sha256:add602d55daca18914838a78221f6bbe4284114b452c86a48f96d59aeb00f5c6 AS xx
 
@@ -30,7 +33,6 @@ RUN go mod download
 COPY . .
 
 # Propagate Dex version from build args to the build environment
-ARG VERSION
 RUN make release-binary
 
 RUN xx-verify /go/bin/dex && xx-verify /go/bin/docker-entrypoint
@@ -59,6 +61,9 @@ FROM gcr.io/distroless/static-debian12:nonroot@sha256:e8a4044e0b4ae4257efa45fc02
 
 FROM $BASE_IMAGE
 
+ARG VERSION
+ARG BUILD_TIME
+
 # Dex connectors, such as GitHub and Google logins require root certificates.
 # Proper installations should manage those certificates, but it's a bad user
 # experience when this doesn't work out of the box.
@@ -78,6 +83,10 @@ COPY --from=builder /go/bin/docker-entrypoint /usr/local/bin/docker-entrypoint
 COPY --from=builder /usr/local/src/dex/web /srv/dex/web
 
 COPY --from=gomplate /usr/local/bin/gomplate /usr/local/bin/gomplate
+
+LABEL dex.custom=true \
+      dex.version="${VERSION}" \
+      dex.build_time="${BUILD_TIME}"
 
 USER 1001:1001
 

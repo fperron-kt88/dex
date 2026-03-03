@@ -1,0 +1,55 @@
+name: Build and Push to GitHub Container Registry
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    name: Build and Push Dex Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version info
+        id: version
+        run: |
+          # Try to get semantic version from git describe, fallback to short SHA
+          GIT_VERSION=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)
+          FULL_SHA=$(git rev-parse HEAD)
+          # Tag format: v2.38.0-googlebusiness or SHA-googlebusiness
+          IMAGE_TAG="${GIT_VERSION}-googlebusiness"
+          echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "sha=${FULL_SHA}" >> $GITHUB_OUTPUT
+          echo "Building dex version: ${IMAGE_TAG}"
+          echo "Full SHA: ${FULL_SHA}"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg VERSION="${{ steps.version.outputs.sha }}" \
+            --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.tag }} \
+            -t ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.sha }} \
+            -t ghcr.io/fperron-kt88/dex:latest \
+            .
+
+      - name: Push image
+        run: |
+          docker push ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.tag }}
+          docker push ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.sha }}
+          docker push ghcr.io/fperron-kt88/dex:latest
+          echo ""
+          echo "Successfully pushed dex images:"
+          echo "  - ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.tag }}"
+          echo "  - ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.sha }}"
+          echo "  - ghcr.io/fperron-kt88/dex:latest"
