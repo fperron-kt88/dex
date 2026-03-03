@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/dexidp/dex/connector"
-	googleconn "github.com/dexidp/dex/connector/google"
 	"golang.org/x/oauth2"
 	googauth "golang.org/x/oauth2/google"
+
+	"github.com/dexidp/dex/connector"
+	googleconn "github.com/dexidp/dex/connector/google"
 )
 
 type Config struct {
