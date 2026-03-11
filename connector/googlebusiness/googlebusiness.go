@@ -93,14 +93,19 @@ func (c *googleBusinessConnector) HandleCallback(s connector.Scopes, r *http.Req
 }
 
 func (c *googleBusinessConnector) callBusinessAPI(email, idToken string) ([]string, error) {
-	// Construct the API URL with email and ID token as query parameters
-	url := fmt.Sprintf("%s?email=%s&id_token=%s", c.businessAPIURL, email, idToken)
+	// Use URL without query parameters
+	url := c.businessAPIURL
 
 	// Create the request
 	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+
+	// Add Authorization header with Bearer token
+	req.Header.Set("Authorization", "Bearer "+idToken)
+	req.Header.Set("X-User-Email", email)
+	req.Header.Set("Content-Type", "application/json")
 
 	// Make the request
 	resp, err := c.httpClient.Do(req)
