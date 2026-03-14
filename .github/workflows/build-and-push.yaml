@@ -28,8 +28,10 @@ jobs:
           IMAGE_TAG="${GIT_VERSION}-googlebusiness"
           echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           echo "sha=${FULL_SHA}" >> $GITHUB_OUTPUT
+          echo "semantic_version=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           echo "Building dex version: ${IMAGE_TAG}"
           echo "Full SHA: ${FULL_SHA}"
+          echo "Semantic version: ${IMAGE_TAG}"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -41,7 +43,7 @@ jobs:
       - name: Build image
         run: |
           docker build \
-            --build-arg VERSION="${{ steps.version.outputs.sha }}" \
+            --build-arg VERSION="${{ steps.version.outputs.semantic_version }}" \
             --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -t ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.tag }} \
             -t ghcr.io/fperron-kt88/dex:${{ steps.version.outputs.sha }} \
